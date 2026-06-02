@@ -1,0 +1,37 @@
+# Binaries
+/vod-server
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Environment variables
+.env
+.env.local
+
+# Docker & IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# S3 & Local Data Volumes
+/data/
+/frontend/.nuxt/
+/frontend/.output/
+/frontend/node_modules/
+/frontend/dist/
+
+# SQLite Database
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal

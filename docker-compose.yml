@@ -1,0 +1,59 @@
+services:
+  vod:
+    build: .
+    container_name: simple-vod-api
+    ports:
+      - "8080:8080"
+    environment:
+      - VOD_LISTEN_ADDR=:8080
+      - VOD_S3_ENDPOINT=http://simple-vod-garage:3900
+      - VOD_S3_ACCESS_KEY=vod_access_key_123
+      - VOD_S3_SECRET_KEY=vod_secret_key_456
+      - VOD_S3_REGION=garage
+      - VOD_S3_BUCKET=vod-private
+      - VOD_S3_USE_PATH_STYLE=true
+    volumes:
+      - vod_data:/app/data
+    depends_on:
+      - simple-vod-garage
+
+  simple-vod-garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: simple-vod-garage
+    command: ["/garage", "-c", "/etc/garage.toml", "server", "--single-node", "--default-bucket"]
+    ports:
+      - "3901:3900" 
+      - "3902:3902" 
+    volumes:
+      - simple_vod_garage_meta:/var/lib/garage/meta
+      - simple_vod_garage_data:/var/lib/garage/data
+    configs:
+      - source: simple_vod_garage_config
+        target: /etc/garage.toml
+    environment:
+      - GARAGE_RPC_SECRET=a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+      - GARAGE_DEFAULT_ACCESS_KEY=vod_access_key_123
+      - GARAGE_DEFAULT_SECRET_KEY=vod_secret_key_456
+      - GARAGE_DEFAULT_BUCKET=vod-private
+      - GARAGE_PRIVATE_BUCKET=vod-private
+
+configs:
+  simple_vod_garage_config:
+    content: |
+      metadata_dir = "/var/lib/garage/meta"
+      data_dir = "/var/lib/garage/data"
+      db_engine = "sqlite"
+      replication_factor = 1
+      rpc_bind_addr = "[::]:3903"
+      rpc_public_addr = "127.0.0.1:3903"
+      [s3_api]
+      s3_region = "garage"
+      api_bind_addr = "[::]:3900"
+      [s3_web]
+      bind_addr = "[::]:3902"
+      root_domain = ".web.s3.garage.localhost"
+
+volumes:
+  vod_data:
+  simple_vod_garage_meta:
+  simple_vod_garage_data:
