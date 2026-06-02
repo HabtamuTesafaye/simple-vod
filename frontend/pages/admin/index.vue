@@ -79,7 +79,8 @@
                   <span v-else class="text-gray-400 italic">Uncategorized</span>
                 </td>
                 <td class="py-3 px-4 text-right space-x-2">
-                  <NuxtLink :to="`/client/player?id=${v.id}`" target="_blank" class="inline-block bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-sm font-medium py-1 px-3 rounded-md transition">Play</NuxtLink>
+                  <button @click="copyEmbed(v.id)" class="inline-block bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium py-1 px-3 rounded-md transition">Embed</button>
+                  <a :href="`http://localhost:8080/embed/${v.id}`" target="_blank" class="inline-block bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-sm font-medium py-1 px-3 rounded-md transition">Play</a>
                   <button @click="deleteVideo(v.id)" class="bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium py-1 px-3 rounded-md transition">Delete</button>
                 </td>
               </tr>
@@ -158,6 +159,12 @@ async function deleteVideo(id) {
   if (!confirm('Are you sure you want to delete this video?')) return
   await fetch(`/api/v1/videos/${id}`, { method: 'DELETE' })
   await fetchVideos()
+}
+
+function copyEmbed(id) {
+  const code = `<iframe src="http://localhost:8080/embed/${id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`
+  navigator.clipboard.writeText(code)
+  alert('Embed code copied to clipboard!\n\n' + code)
 }
 
 async function uploadVideo() {

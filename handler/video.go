@@ -227,3 +227,91 @@ func (h *VideoHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// Embed serves a self-contained HTML video player — use it like Bunny Stream:
+// <iframe src="http://your-vod-host/embed/{video_id}" allow="autoplay; fullscreen" allowfullscreen></iframe>
+func (h *VideoHandler) Embed(w http.ResponseWriter, r *http.Request) {
+	videoID := chi.URLParam(r, "id")
+
+	video, err := h.store.GetVideo(r.Context(), videoID)
+	if err != nil || video == nil {
+		http.Error(w, "Video not found", http.StatusNotFound)
+		return
+	}
+
+	streamURL, err := h.s3Cli.PresignedURL(r.Context(), video.S3Key, h.config.PresignExpiry)
+	if err != nil {
+		http.Error(w, "Failed to generate stream URL", http.StatusInternalServerError)
+		return
+	}
+
+	expiresIn := int(h.config.PresignExpiry.Seconds())
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("X-Frame-Options", "ALLOWALL")
+	fmt.Fprintf(w, embedHTML, video.Title, streamURL, videoID, expiresIn)
+}
+
+const embedHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>%%s</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%%; height: 100%%; overflow: hidden; background: #000; }
+  video {
+    width: 100%%; height: 100%%; object-fit: contain;
+    display: block; background: #000;
+  }
+  .error {
+    color: #f87171; font-family: system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    width: 100%%; height: 100%%; font-size: 14px; padding: 20px; text-align: center;
+  }
+</style>
+</head>
+<body>
+<video id="player" controls playsinline autoplay src="%%s">
+  Your browser does not support the video tag.
+</video>
+
+<script>
+(function() {
+  const videoId = "%%s";
+  const expiresIn = %%d;
+  const player = document.getElementById("player");
+
+  // Resolve the stream API URL relative to the embed page origin
+  const streamApiUrl = window.location.origin + "/api/v1/videos/" + videoId + "/stream";
+
+  async function refreshToken() {
+    try {
+      const res = await fetch(streamApiUrl);
+      if (!res.ok) throw new Error("Failed to fetch stream");
+      const data = await res.json();
+
+      const currentTime = player.currentTime;
+      const wasPaused = player.paused;
+      player.src = data.url;
+      player.currentTime = currentTime;
+      if (!wasPaused) player.play();
+
+      // Schedule next refresh at 75%% of token lifetime
+      setTimeout(refreshToken, data.expires_in * 0.75 * 1000);
+    } catch (e) {
+      console.error("Token refresh failed:", e);
+    }
+  }
+
+  // Schedule first token refresh
+  setTimeout(refreshToken, expiresIn * 0.75 * 1000);
+
+  player.onerror = function() {
+    document.body.innerHTML = '<div class="error">Failed to load video. Please try again later.</div>';
+  };
+})();
+</script>
+</body>
+</html>`

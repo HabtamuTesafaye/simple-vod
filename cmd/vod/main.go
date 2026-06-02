@@ -76,6 +76,9 @@ func main() {
 		})
 	})
 
+	// Embed route — use like Bunny Stream: <iframe src="/embed/{id}"></iframe>
+	r.Get("/embed/{id}", videoHandler.Embed)
+
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("OK"))
 	})
